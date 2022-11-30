@@ -58,33 +58,22 @@ class CleanHeart():
 """#Calling our class and transforming it into a tensor for our model"""
 
 data2=CleanHeart(data)
-clean=data2.dum() #need to split x and y and turn why into 0,1
-#cleanx=clean[:,1:39]
+clean=data2.dum() #need to split x and y and turn y into 0,1 dummies
 clean
 
-clean['Heart_Dummy'] = clean.apply(lambda y: 1 if y['HeartDisease'] == 'Yes' else 0, axis=1) #turning y to o,1
-
+clean['Heart_Dummy'] = clean.apply(lambda y: 1 if y['HeartDisease'] == 'Yes' else 0, axis=1) #one hot encoding applied here 
 clean.drop(columns=['HeartDisease'],inplace=True)
 clean
 
-"""#stepwise log regression for feature selection"""
+"""# in future consider using stepwise log regression for feature selection"""
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-
-X=clean[:,1:52]
-y=clean[:,0]
+"""from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split"""
 
 
 
 
-"""import statsmodels.api as sm
-def get_log_Results():
-  x_featTrain = X_train
-  results = sm.Logit(y_train,X_train).fit()
-  print(results.summary())
-output = get_log_Results()
-output"""
+#creating a tensor fo our data
 
 clean_tensor = torch.tensor(clean.values)
 clean_tensor.shape
@@ -104,7 +93,7 @@ print(torch.__version__)
 
 #defining our nerual network architecture for training and test(based on values we will determine if we overfit our model and plan accordingly(early stopping or L1 / L2 REG))
 
-class NeuralNet(nn.Module): # this is our parent class
+class NeuralNet(nn.Module):
   def __init__(self,n_features,Classes):
     super(NeuralNet,self).__init__()# this is our subclass that inherites attributes from nn.Module
     self.InputLayer=nn.Linear(n_features,38)
@@ -133,11 +122,11 @@ print(f"Using {device} device")
 #applying the model
 #model = NeuralNet(n_features,Classes)
 
-#Setting our model hyperparameters
+#Setting our model hyperparameters.... in future try grid search method to find optimal params 
 n_features= 38 #features in our dataset
-Classes = 1 #our binary outcome var
-Learning_rate = 0.1
-Batch_Size = 200 #number of obs we want at each training epoch
+Classes = 2 #our binary outcome var
+Learning_rate = 0.1 
+Batch_Size = 200 #number of obs we want at each training epoch.... training time is long... find optimal batch size 
 Epochs = 1 #number of time we want our data to pass through our neural network
 
 loss_func = nn.CrossEntropyLoss()
@@ -145,6 +134,7 @@ loss_func = nn.CrossEntropyLoss()
 model = NeuralNet(n_features=n_features,Classes=Classes).to(device)
 
 optimizer = optim.Adam(model.parameters(),lr = Learning_rate)
+
 
 #using this class to transform our data to tensors and run a x and y split
 class HeartFailureData():  # this method is best when using custom datasets i.e data that is not offered by pytorch 
@@ -159,36 +149,6 @@ class HeartFailureData():  # this method is best when using custom datasets i.e 
   def __len__(self):
       return self.n_samples #new dataset
 
-"""#X,Y split Test code"""
-
-class HeartFailureData1():  # this method is best when using custom datasets i.e data that is not offered by pytorch 
-  def __init__(self):
-    self.x = clean_tensor.float()
-    self.y = clean_tensor[:,[6]]
-    self.n_samples=self.x.shape[0]
-  
-  def __getitem__(self,index):
-      return self.x[index],self.y[index]
-
-  def __len__(self):
-      return self.n_samples
-
-# do a train test split for x and y vals and load them in the dataloarder
-y = clean_tensor[:,[6]]
-
-#x = clean_tensor
-
-x = clean_tensor[:,np.r_[7:,0:20]] 
-
-#y = x[:, np.r_[:3, 4:36]]
-#need to skip columns 6 using index....
-
-#clean_tensor!=clean_tensor[:,[6]]
-
-
-#x_train = int(x.shape[0] * 0.8)
-
-x.shape, clean_tensor.shape#why is tensor size different?
 
 """#Loading the data using DataLoader"""
 
@@ -213,8 +173,6 @@ for epoch in torch.arange(Batch_Size): #pytorch will remove the use of the range
    #stores both the x and y values in our cpu device
     print(xval.shape) #is the shape based on n rows and n columns or n_dimention and n_columns?
     
-    #xval=xval.reshape(918,21).to(device=device)
-    #targetvar=targetvar.reshape(918,21).to(device=device)
     
     #forward pass
     acurcy_score = model(xval.float()) #try to employ early stopping here 
@@ -224,8 +182,6 @@ for epoch in torch.arange(Batch_Size): #pytorch will remove the use of the range
     optimizer.zero_grad()
     loss.backward() 
    
-
-    #gradient decent
     optimizer.step()
 
 #checking model accuracy and determine overfitting 
@@ -246,9 +202,8 @@ def accuracy(train_dataloader,model):
       num_sample += pred.size(0)
       print(f'got {accurate}/{num_sample} with accuracy rate of ,{float(accurate)/float(num_sample)*100:.2f} at epoch {Epochs}')
     model.train()
-    #return max(accurate) 
-    #return max(float(accurate)/float(num_sample)) can try this to show where accuracy is greatest
 
-    # implement early stopping for the network to prevent model overfitting
-
+    # in future implement early stopping for the network to prevent model overfitting
+    
+#checking the accuracy at each epoch
 accuracy(train_dataloader,model)
